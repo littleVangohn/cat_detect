@@ -1,0 +1,697 @@
+<title>猫脸识别流水线</title>
+<meta name="description" content="猫猫识别器 GUI 的算法 Pipeline 逐模块详解：统一检测、ROI 处理、脸身关联、双分支特征、模板匹配与动态阈值，全部配真实数据与示意图。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{
+  --bg:#F7F1E5; --surface:#FCF8EF; --surface2:#EFE7D5; --line:#E4DAC6;
+  --accent:#7A8B64; --accent-soft:#C6D0B4; --accent-deep:#5C6E49;
+  --ink:#3B352F; --ink2:#756B5C; --ink3:#9C9283;
+  --face:#C96B7F; --face-soft:#F6D9DE;
+  --body:#3E7D52; --body-soft:#D9E7D2;
+  --ok:#4E8D5B; --warn:#B98A3E;
+  --radius:14px;
+  --serif:"Noto Serif SC",Georgia,"Songti SC",serif;
+  --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.85;font-weight:400}
+.layout{position:relative;z-index:1;display:grid;grid-template-columns:216px minmax(0,1fr);gap:44px;max-width:1220px;margin:0 auto;padding:0 30px}
+a{color:var(--accent-deep)}
+h1,h2,h3{font-family:var(--serif);text-wrap:balance}
+h2{font-size:26px;font-weight:800;letter-spacing:.01em;margin:0 0 6px}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{max-width:66ch}
+section{margin-bottom:0}
+.stage{scroll-margin-top:24px;padding:44px 0 8px;border-top:1px solid var(--line)}
+.stage:first-of-type{border-top:none}
+
+.hero{padding:56px 0 30px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--accent-deep);background:var(--accent-soft);border-radius:999px;padding:5px 14px;margin-bottom:18px}
+.hero h1{font-size:46px;font-weight:800;letter-spacing:.02em;line-height:1.25;margin-bottom:14px}
+.hero .sub{font-size:17px;color:var(--ink2);max-width:60ch}
+.stats{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 18px;min-width:150px}
+.stat b{display:block;font-family:var(--serif);font-size:24px;font-weight:800;color:var(--accent-deep);font-variant-numeric:tabular-nums}
+.stat span{font-size:12.5px;color:var(--ink2)}
+
+.spine-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:26px 22px 16px;margin:26px 0 8px}
+.spine-title{font-size:13px;font-weight:700;letter-spacing:.12em;color:var(--ink2);margin-bottom:14px}
+.spine{width:100%;display:block}
+.spine .stg rect{fill:var(--surface2);stroke:var(--line);stroke-width:1.2}
+.spine .stg text{font-family:var(--sans);font-size:12px;fill:var(--ink)}
+.spine .stg .tms{font-size:10.5px;fill:var(--ink2)}
+.spine .dm{stroke:var(--ink3);stroke-width:1.4;stroke-dasharray:4 4}
+
+.rail{position:sticky;top:26px;align-self:start;max-height:calc(100vh - 52px);overflow:auto;padding-right:6px}
+.rail-cap{font-size:11.5px;font-weight:700;letter-spacing:.16em;color:var(--ink3);margin-bottom:10px}
+.rail a{display:flex;gap:10px;align-items:baseline;text-decoration:none;color:var(--ink2);font-size:13px;padding:6px 10px;border-radius:8px;border-left:3px solid transparent}
+.rail a .n{font-family:var(--serif);font-weight:800;font-size:12px;color:var(--accent);min-width:22px}
+.rail a:hover{background:var(--surface)}
+
+.mod-head{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--serif);font-weight:800;font-size:13px;color:#fff;background:var(--accent-deep);border-radius:8px;padding:5px 12px;letter-spacing:.05em}
+.chip.face{background:var(--face)} .chip.body{background:var(--body)}
+.lead{color:var(--ink);font-size:15.5px;margin-bottom:14px}
+.why{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:12px 16px;margin:16px 0;font-size:13.5px;color:var(--ink2)}
+.why b{color:var(--accent-deep)}
+.why .lb{display:block;font-size:11.5px;font-weight:700;letter-spacing:.14em;color:var(--accent);margin-bottom:4px}
+.code{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font:12.5px/1.7 var(--mono);color:var(--ink);margin:12px 0}
+.code .src{display:block;font:11px var(--mono);color:var(--ink3);margin-bottom:6px;letter-spacing:.03em}
+.code .cm{color:var(--ink3)}
+.code .kw{color:var(--accent-deep);font-weight:700}
+.code .fn{color:var(--face)}
+.code .num{color:var(--warn)}
+
+.tbl{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;background:var(--surface);border-radius:10px;overflow:hidden}
+.tbl th,.tbl td{padding:7px 12px;text-align:left;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tbl th{background:var(--surface2);font-size:12px;letter-spacing:.06em;color:var(--ink2)}
+.tbl td:last-child{color:var(--ink2)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl .v{color:var(--accent-deep);font-weight:700}
+
+figure{margin:18px 0}
+figure img{display:block;width:100%;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+figcaption{font-size:12.5px;color:var(--ink2);margin-top:8px;line-height:1.7}
+figcaption b{color:var(--ink)}
+.img-pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.img-pair{grid-template-columns:1fr}}
+
+/* 静态示意图 */
+.diag{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin:18px 0}
+.diag svg{width:100%;height:auto;display:block;border-radius:8px;background:var(--bg)}
+.diag text{font-family:var(--sans)}
+.diag .lbl{font-size:12px;fill:var(--ink)}
+.diag .lbl2{font-size:10.5px;fill:var(--ink2)}
+.diag .big{font-size:14px;font-weight:700;fill:var(--ink)}
+
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 12px;margin:18px 0}
+.chart h4{font-family:var(--serif);font-size:15px;font-weight:600;margin-bottom:2px}
+.chart .note{font-size:12px;color:var(--ink2);margin-bottom:12px}
+.hbars{position:relative;padding:4px 0 6px}
+.hrow{display:grid;grid-template-columns:104px 1fr;gap:8px;align-items:center;margin:7px 0;position:relative}
+.hrow .lab{font-size:12.5px;color:var(--ink2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow .track2{position:relative;height:18px;background:var(--surface2);border-radius:6px}
+.hrow .bar{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--accent-soft);min-width:2px}
+.hrow .bar.dark{background:var(--accent-deep)}
+.hrow .val{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.thr-line{position:absolute;top:0;bottom:0;width:2px;background:var(--face);opacity:.85}
+.thr-line::after{content:attr(data-lab);position:absolute;top:-17px;left:4px;font-size:10.5px;color:var(--face);white-space:nowrap;font-weight:700}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--ink2);margin:8px 0 0}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+details{font-size:12.5px;color:var(--ink2);margin-top:10px}
+details summary{cursor:pointer;color:var(--accent-deep);font-weight:600}
+details table{width:100%;margin-top:8px;border-collapse:collapse}
+details td,details th{padding:4px 10px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
+
+.result-card{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.rbox{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.rbox .k{font-size:11.5px;color:var(--ink3);letter-spacing:.05em}
+.rbox .v{font-family:var(--serif);font-size:21px;font-weight:800;color:var(--accent-deep);font-variant-numeric:tabular-nums;margin-top:2px}
+.rbox.pass{border-color:var(--accent);background:var(--body-soft)}
+.rbox.pass .v{color:var(--ok)}
+.rbox .v small{font-size:12px;font-weight:600;color:var(--ink2)}
+
+.footer{padding:44px 0 70px;border-top:1px solid var(--line);margin-top:40px;font-size:13px;color:var(--ink2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:960px){.two{grid-template-columns:1fr}}
+@media(max-width:960px){
+  .layout{grid-template-columns:1fr;padding:0 18px}
+  .rail{display:none}
+  .hero h1{font-size:34px}
+}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+kbd{font-family:var(--mono);font-size:12px;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+</style>
+
+<header class="hero">
+  <span class="eyebrow">猫猫识别器 · 算法原理图解</span>
+  <h1>猫脸识别流水线</h1>
+  <p class="sub">从一帧普通照片，到准确叫出每一只猫的名字——本文逐模块拆解 <b>run_gui.py</b> 的全部算法细节：统一检测、ROI 处理、脸身关联、双分支特征、模板匹配与动态阈值，每一步都配真实运行数据、示意图与代码佐证。</p>
+  <div class="stats">
+    <div class="stat"><b>28.2 ms</b><span>GPU 端到端识别（单猫照片）</span></div>
+    <div class="stat"><b>384 维</b><span>L2 归一化特征 × 脸 / 身两分支</span></div>
+    <div class="stat"><b>0.62 + 0.38</b><span>脸 / 身余弦分数加权融合</span></div>
+    <div class="stat"><b>6 身份 · 29 张</b><span>当前注册图库（均值模板）</span></div>
+  </div>
+
+  <div class="spine-wrap">
+    <div class="spine-title">整条链路 · 数据流全景</div>
+    <svg class="spine" viewBox="0 0 1180 132" role="img" aria-label="识别流水线：解码、统一检测、关联、双分支特征、融合匹配、决策输出六阶段数据流">
+      <defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7A8B64"/></marker></defs>
+      <g class="stg"><rect x="18" y="20" width="150" height="52" rx="10"/><text x="93" y="42" text-anchor="middle">解码 / EXIF</text><text class="tms" x="93" y="58" text-anchor="middle">12.9 ms · 不计入</text></g>
+      <g class="stg"><rect x="218" y="20" width="150" height="52" rx="10"/><text x="293" y="42" text-anchor="middle">统一检测 YOLO11n</text><text class="tms" x="293" y="58" text-anchor="middle">18.1 ms · 脸 + 身</text></g>
+      <g class="stg"><rect x="418" y="20" width="130" height="52" rx="10"/><text x="483" y="42" text-anchor="middle">脸身关联</text><text class="tms" x="483" y="58" text-anchor="middle">0.03 ms</text></g>
+      <g class="stg"><rect x="598" y="20" width="170" height="52" rx="10"/><text x="683" y="42" text-anchor="middle">双分支特征 MobileOne</text><text class="tms" x="683" y="58" text-anchor="middle">6.8 ms · 脸 2.7 + 身 4.1</text></g>
+      <g class="stg"><rect x="818" y="20" width="140" height="52" rx="10"/><text x="888" y="42" text-anchor="middle">融合匹配</text><text class="tms" x="888" y="58" text-anchor="middle">3.2 ms · 余弦 × 6 身份</text></g>
+      <g class="stg"><rect x="1008" y="20" width="154" height="52" rx="10"/><text x="1085" y="42" text-anchor="middle">动态阈值决策</text><text class="tms" x="1085" y="58" text-anchor="middle">→ 身份 + 置信度</text></g>
+      <path d="M168 46 L218 46 M368 46 L418 46 M548 46 L598 46 M768 46 L818 46 M958 46 L1008 46" stroke="#7A8B64" fill="none" stroke-width="2" marker-end="url(#arr)"/>
+      <line class="dm" x1="18" y1="104" x2="1162" y2="104"/>
+      <text x="18" y="124" font-size="11" fill="#756B5C" font-family="sans-serif">总耗时 = 检测 + 关联 + 特征 + 匹配 ≈ <tspan font-weight="700" fill="#3B352F">28.2 ms</tspan>（解码为文件读取，不计入端到端主耗时）</text>
+    </svg>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="rail" aria-label="目录">
+  <div class="rail-cap">流水线导航</div>
+  <a href="#stage-0"><span class="n">00</span>概览 · 设计取舍</a>
+  <a href="#stage-1"><span class="n">01</span>统一检测 YOLO11n</a>
+  <a href="#stage-2"><span class="n">02</span>ROI 扩边与裁剪</a>
+  <a href="#stage-3"><span class="n">03</span>脸身关联</a>
+  <a href="#stage-4"><span class="n">04</span>双分支特征提取</a>
+  <a href="#stage-5"><span class="n">05</span>均值模板库</a>
+  <a href="#stage-6"><span class="n">06</span>余弦匹配与融合</a>
+  <a href="#stage-7"><span class="n">07</span>动态阈值决策</a>
+  <a href="#stage-8"><span class="n">08</span>摄像头链路</a>
+  <a href="#stage-9"><span class="n">09</span>线程与热身</a>
+  <a href="#stage-10"><span class="n">10</span>附录 · 常量与实测</a>
+</nav>
+
+<main>
+
+<section class="stage" id="stage-0">
+  <div class="mod-head"><span class="chip">00 · 概览</span><h2>一条链上的六个环节</h2></div>
+  <p class="lead">整个识别器只有一条数据链：<b>照片或摄像头帧</b> → <b>一次双类别 YOLO 检测</b>（同时输出猫身与猫脸）→ <b>ROI 处理 + 脸身关联</b> → <b>脸 / 身两个 MobileOne-S1 编码器</b>（各出一个 384 维向量）→ <b>余弦匹配 + 0.62/0.38 融合</b> → <b>动态阈值决策</b>。没有级联检测器，没有传统特征（SIFT / NekoNet / XGBoost 均已移除），整条链在 GPU 上约 28 ms。</p>
+
+  <div class="why"><span class="lb">为什么 · 设计取舍</span>
+  <b>用一次双类别检测替代两次串行检测。</b> 猫身与猫脸由同一个 YOLO11n 模型在一遍前向里同时输出（类别 0 = <code>cat_body</code>，类别 1 = <code>cat_face</code>）。检测器只有 10 毫秒级别的延时，是链路里最贵的环节；合并成一次前向后，多猫场景的检测成本不再随猫的数量翻倍。权重与板端 demo_hisi 同源，界面端与板端行为一致。</div>
+
+  <figure>
+    <img src="images/query_original.jpg" alt="待识别的猫照片：一只三花猫趴在垫子上">
+    <figcaption><b>输入</b> · 真实测试照片（喵比，1440×1080，来自注册库）。下面所有演示都基于这张照片与其真实识别结果。</figcaption>
+  </figure>
+
+  <h3>本次实测的分阶段耗时</h3>
+  <div class="chart">
+    <h4>单张照片识别的耗时分解</h4>
+    <div class="note">真实运行结果（CUDA / YOLO11n 640 输入）· 合计 28.2 ms</div>
+    <div class="hbars" style="padding-top:22px">
+      <div class="hrow"><span class="lab">统一检测</span><div class="track2"><div class="bar dark" style="width:64.2%"></div><span class="val">18.1 ms</span></div></div>
+      <div class="hrow"><span class="lab">身体特征</span><div class="track2"><div class="bar" style="width:14.5%"></div><span class="val">4.1 ms</span></div></div>
+      <div class="hrow"><span class="lab">融合匹配</span><div class="track2"><div class="bar" style="width:11.3%"></div><span class="val">3.2 ms</span></div></div>
+      <div class="hrow"><span class="lab">脸部特征</span><div class="track2"><div class="bar" style="width:9.6%"></div><span class="val">2.7 ms</span></div></div>
+      <div class="hrow"><span class="lab">脸身关联</span><div class="track2"><div class="bar" style="width:0.1%"></div><span class="val">0.03 ms</span></div></div>
+    </div>
+    <details><summary>查看数据表</summary>
+      <table><tr><th>阶段</th><th>耗时</th><th>占比</th></tr><tr><td>统一检测</td><td>18.1 ms</td><td>64%</td></tr><tr><td>脸部特征</td><td>2.7 ms</td><td>10%</td></tr><tr><td>身体特征</td><td>4.1 ms</td><td>15%</td></tr><tr><td>脸身关联</td><td>0.03 ms</td><td>≈0%</td></tr><tr><td>融合匹配</td><td>3.2 ms</td><td>11%</td></tr></table>
+    </details>
+  </div>
+
+  <p>检测占了近三分之二——这是把"减少检测次数"作为架构第一原则的原因；双分支特征、匹配全部是毫秒以下到个位数毫秒的廉价环节。接下来的每一节，我们沿着这条链逐个环节拆开。</p>
+</section>
+
+<section class="stage" id="stage-1">
+  <div class="mod-head"><span class="chip">01 · 统一检测</span><h2>YOLO11n：一次前向，两类框</h2></div>
+  <p class="lead">输入整帧 BGR 图像，缩放到 <b>640×640</b> 送入 YOLO11n，一次前向同时得到两类目标：<b>猫身框</b>（类别 0）与<b>猫脸框</b>（类别 1）。置信度阈值取两类中较小者 <kbd>0.10</kbd>（先召回，后由匹配环节把关），NMS 的 IoU 阈值 0.50。</p>
+
+  <figure class="img-pair">
+    <figure><img src="images/query_original.jpg" alt="原始照片"><figcaption><b>输入帧</b> · 原始照片（不缩放，特征仍取自全分辨率）</figcaption></figure>
+    <figure><img src="images/query_annotated.jpg" alt="带检测框标注的照片：绿色身框与粉色脸框"><figcaption><b>真实输出</b> · 绿框 = 身框（扩展 15%），粉框 = 脸框（扩展 10%），标签含身份与融合置信度。脸框在身框内部，由下一步的关联逻辑建立对应。</figcaption></figure>
+  </figure>
+
+  <h3>NMS 在做什么</h3>
+  <p>YOLO 会对同一个目标输出多个候选框。NMS 按置信度排序，保留最高分框，抑制与其 IoU 超过 0.50 的其他框——<b>更早抑制同一张脸的重复框，同时保留并排猫脸</b>（源码注释原文）。下图为示意（真实输出已经是 NMS 之后的结果）。</p>
+  <div class="diag">
+    <svg viewBox="0 0 640 210" role="img" aria-label="NMS 示意：三个候选框中，与最高分框 IoU 超阈值的重复框被抑制，低置信误检被过滤，最终只保留一个">
+      <text class="lbl2" x="160" y="22" text-anchor="middle">检测输出：3 个候选框</text>
+      <rect x="70" y="60" width="100" height="70" fill="none" stroke="#C96B7F" stroke-width="2"/>
+      <rect x="95" y="48" width="105" height="90" fill="none" stroke="#C96B7F" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <rect x="40" y="165" width="58" height="26" fill="none" stroke="#7A8B64" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <text class="lbl" x="120" y="150" text-anchor="middle">A · conf 0.86</text>
+      <text class="lbl2" x="160" y="150" text-anchor="middle">B · conf 0.80（与 A 重叠）</text>
+      <text class="lbl2" x="69" y="196" text-anchor="middle">C · conf 0.09</text>
+      <path d="M300 105 L336 105" stroke="#7A8B64" stroke-width="2" marker-end="url(#arr)"/>
+      <text class="lbl" x="318" y="96" text-anchor="middle">NMS</text>
+      <text class="lbl2" x="160" y="115" text-anchor="start"></text>
+      <text class="lbl2" x="360" y="22">最终输出：1 个高置信脸框</text>
+      <rect x="410" y="60" width="100" height="70" fill="none" stroke="#C96B7F" stroke-width="2.4"/>
+      <text class="lbl" x="460" y="150" text-anchor="middle">仅保留 A</text>
+      <text class="lbl2" x="460" y="172" text-anchor="middle">A 与 B 的 IoU 0.65 &gt; 0.50 → 抑制 B</text>
+      <text class="lbl2" x="460" y="190" text-anchor="middle">C 的 conf 0.09 &lt; 0.10 → 置信度滤除</text>
+    </svg>
+  </div>
+
+  <div class="code"><span class="src">run_gui.py · L522-547 · _detect_modalities()</span>
+<span class="kw">def</span> <span class="fn">_detect_modalities</span>(self, frames_bgr):
+    results = self.detector.predict(
+        source=frames_bgr, imgsz=<span class="num">640</span>,
+        conf=min(CONFIDENCE, BODY_CONFIDENCE), iou=NMS_IOU,   <span class="cm"># 0.10 / 0.50</span>
+        classes=[BODY_CLASS_ID, FACE_CLASS_ID],               <span class="cm"># 0=cat_body, 1=cat_face</span>
+        device=self.device_arg, verbose=False, save=False)
+    <span class="cm"># 一次前向，随后拆成脸组与身组两路</span></div>
+
+  <div class="why"><span class="lb">为什么 · 这样设参</span>
+  <b>置信度 0.10 而非更高</b>：检测只负责"找出所有候选"，身份判别交给后面的特征匹配。宁可多检出一个框，也不漏掉一张正脸——漏检无法补救，误检会被匹配环节拒掉。<b>IoU 0.50</b>：0.50 已足够把"同一个目标的多候选"并成一个，又不会把并排坐的两只猫吞成一个。</div>
+
+  <table class="tbl">
+    <tr><th>常量</th><th>值</th><th>含义</th></tr>
+    <tr><td>IMGSZ</td><td class="v">640</td><td>YOLO 输入边长（矩形自动缩放）</td></tr>
+    <tr><td>CONFIDENCE / BODY_CONFIDENCE</td><td class="v">0.10 / 0.10</td><td>脸 / 身两类检测置信度下限</td></tr>
+    <tr><td>NMS_IOU</td><td class="v">0.50</td><td>NMS 抑制阈值</td></tr>
+    <tr><td>classes</td><td class="v">[0, 1]</td><td>cat_body = 0，cat_face = 1</td></tr>
+  </table>
+</section>
+
+<section class="stage" id="stage-2">
+  <div class="mod-head"><span class="chip face">02 · ROI 处理</span><h2>扩边、裁剪、统一到 224×224</h2></div>
+  <p class="lead">检测框直接裁剪会切到耳朵、下巴或毛发边缘，特征提取器看不到足够上下文。因此<b>脸框再外扩 10%，身框外扩 15%</b>，裁出后缩放（INTER_CUBIC）到 <b>224×224</b> 作为编码器输入。越界部分被钳制到图像边界；若扩展后区域无效则丢弃该框。</p>
+
+  <div class="diag">
+    <svg viewBox="0 0 640 230" role="img" aria-label="ROI 扩边示意：脸框外扩 10%，身框外扩 15%，裁剪后缩放到 224 乘 224">
+      <text class="lbl2" x="155" y="22" text-anchor="middle">脸框（真实框坐标）</text>
+      <rect x="135" y="45" width="120" height="78" fill="none" stroke="#C96B7F" stroke-width="2"/>
+      <rect x="115" y="28" width="160" height="112" fill="none" stroke="#C96B7F" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <path d="M132 40 L132 34 M140 40 L140 34" stroke="#C96B7F" stroke-width="1.4"/>
+      <path d="M255 40 L255 34 M263 40 L263 34" stroke="#C96B7F" stroke-width="1.4"/>
+      <text class="lbl" x="197" y="168" text-anchor="middle">外扩 10%</text>
+      <text class="lbl2" x="197" y="186" text-anchor="middle">284×248 → 224×224</text>
+      <path d="M300 96 L336 96" stroke="#7A8B64" stroke-width="2" marker-end="url(#arr)"/>
+      <text class="lbl2" x="420" y="22" text-anchor="middle">身框（真实框坐标）</text>
+      <rect x="420" y="45" width="130" height="58" fill="none" stroke="#3E7D52" stroke-width="2"/>
+      <rect x="400" y="32" width="170" height="86" fill="none" stroke="#3E7D52" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <text class="lbl" x="485" y="150" text-anchor="middle">外扩 15%</text>
+      <text class="lbl2" x="485" y="168" text-anchor="middle">1436×626 → 224×224</text>
+      <text class="lbl2" x="320" y="214" text-anchor="middle">越界部分钳制到图像边缘；扩边后区域无效的框直接丢弃</text>
+    </svg>
+  </div>
+
+  <figure class="img-pair">
+    <figure><img src="images/face_crop.jpg" alt="裁剪出的猫脸区域"><figcaption><b>脸 ROI</b> · 284×248 原始裁剪（显示按比例缩放）→ 缩放到 224×224</figcaption></figure>
+    <figure><img src="images/body_crop.jpg" alt="裁剪出的猫身体区域"><figcaption><b>身 ROI</b> · 1436×626 原始裁剪 → 缩放到 224×224。身体分支看到的正是这种大范围花色 / 体型信息。</figcaption></figure>
+  </figure>
+
+  <div class="code"><span class="src">run_gui.py · L350-363 · expanded_box_with_margin()  +  L480-483 · 裁剪与缩放</span>
+dx, dy = (x2 - x1) * margin, (y2 - y1) * margin
+left, top   = max(<span class="num">0</span>, int(x1 - dx)), max(<span class="num">0</span>, int(y1 - dy))   <span class="cm"># 越界钳制</span>
+right, bottom = min(width, int(x2 + dx)), min(height, int(y2 + dy))
+<span class="cm"># 脸用 MARGIN=0.10；身用 BODY_MARGIN=0.15</span>
+resized = cv2.resize(frame_bgr[top:bottom, left:right],
+                     (<span class="num">224</span>, <span class="num">224</span>), interpolation=cv2.INTER_CUBIC)</div>
+
+  <div class="why"><span class="lb">为什么 · 扩边比例不同</span>
+  脸框扩 10% 就够——脸是密集判别区，太多背景反而稀释特征；身框扩 15%——身体框往往贴边切掉尾巴和爪子，多一点余量让花色、体型信息完整。两类 ROI 都进 224×224 是为了与 MobileOne 训练时的输入口径一致。</div>
+</section>
+
+<section class="stage" id="stage-3">
+  <div class="mod-head"><span class="chip">03 · 关联</span><h2>脸归身：中心点落入最小身框</h2></div>
+  <p class="lead">检测输出是两组独立的框，还"不知道"哪张脸属于哪只猫。关联规则只有一条：<b>取每张脸的中心点，找出所有包含该点的身框，归属其中面积最小的那个</b>。没有身框包含它 → 该脸作为独立个体（仅脸分支）；身框没匹配到任何脸 → 保留为仅身个体。</p>
+
+  <div class="diag">
+    <svg viewBox="0 0 640 260" role="img" aria-label="脸身关联示意：每张脸的中心点落入包含它的最小身框；没有身框包含的脸作为独立个体">
+      <rect x="60" y="60" width="200" height="140" rx="10" fill="#D9E7D2" stroke="#3E7D52" stroke-width="1.8"/>
+      <rect x="110" y="82" width="58" height="44" rx="6" fill="#F6D9DE" stroke="#C96B7F" stroke-width="1.6"/>
+      <circle cx="139" cy="104" r="4" fill="#C96B7F"/>
+      <path d="M139 112 L139 152" stroke="#C96B7F" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+      <text class="lbl" x="160" y="38" text-anchor="middle">猫甲（身框）</text>
+      <text class="lbl2" x="139" y="76" text-anchor="middle">脸</text>
+      <text class="lbl2" x="139" y="174" text-anchor="middle">中心落入 → 归属猫甲</text>
+
+      <rect x="380" y="60" width="200" height="140" rx="10" fill="#D9E7D2" stroke="#3E7D52" stroke-width="1.8"/>
+      <rect x="412" y="82" width="58" height="44" rx="6" fill="#F6D9DE" stroke="#C96B7F" stroke-width="1.6"/>
+      <circle cx="441" cy="104" r="4" fill="#C96B7F"/>
+      <path d="M441 112 L441 152" stroke="#C96B7F" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+      <text class="lbl" x="480" y="38" text-anchor="middle">猫乙（身框）</text>
+      <text class="lbl2" x="441" y="76" text-anchor="middle">脸</text>
+      <text class="lbl2" x="441" y="174" text-anchor="middle">中心落入 → 归属猫乙</text>
+
+      <rect x="300" y="196" width="50" height="36" rx="6" fill="none" stroke="#7A8B64" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <circle cx="325" cy="214" r="4" fill="#7A8B64"/>
+      <text class="lbl2" x="440" y="218" text-anchor="start">中心不在任何身框 → 独立个体（仅脸分支）</text>
+      <text class="lbl2" x="320" y="252" text-anchor="middle">多张脸落入同一身框时，只保留置信度最高的那张</text>
+    </svg>
+  </div>
+
+  <div class="code"><span class="src">run_gui.py · L706-734 · _associate_subjects()</span>
+containing = [<span class="kw">for</span> index, body <span class="kw">in</span> enumerate(bodies)
+              <span class="kw">if</span> body.box[0] &lt;= center_x &lt;= body.box[2]
+                 <span class="kw">and</span> body.box[1] &lt;= center_y &lt;= body.box[3]]
+<span class="kw">if</span> containing:
+    body_index = min(containing, key=<span class="kw">lambda</span> i: area(bodies[i]))   <span class="cm"># 最小身框</span>
+    body_faces[body_index].append(face_index)                    <span class="cm"># 脸 → 身 归属</span></div>
+
+  <div class="why"><span class="lb">为什么 · 选最小框而不是最大框</span>
+  并排两只猫时，外侧的大身框常常同时包住两张脸——若选最大框，两只猫会被归给同一只。选<b>最小包含框</b>保证了每张脸都归属最"贴身"的主人；一个身框最多再留一张置信度最高的脸（同框多脸取高置信）。</div>
+
+  <h3>关联后形成"个体"</h3>
+  <p>关联结果是 <code>(body | None, face | None)</code> 的个体列表。每个个体进入特征提取时独立成路：双框齐全走"脸 + 身"双分支，只检出脸走脸分支，只检出身走身分支——融合逻辑在匹配阶段按可用分支自动降级。</p>
+</section>
+
+<section class="stage" id="stage-4">
+  <div class="mod-head"><span class="chip">04 · 特征</span><h2>MobileOne-S1 × 2：双分支 384 维</h2></div>
+  <p class="lead">每个个体提取两类特征：<b>脸编码器</b>和<b>身编码器</b>，都是 MobileOne-S1 骨干 + 384 维投影头。输入做 ImageNet 均值/方差归一化（0.485, 0.456, 0.406 / 0.229, 0.224, 0.225），输出做 <b>L2 归一化</b>——归一化后的向量，余弦相似度退化为内积，匹配阶段就是一次矩阵乘。两类 ROI 各自<b>批量</b>送入 GPU，多猫同框也只有两批前向。</p>
+
+  <h3>MobileOne 重参数化</h3>
+  <p>MobileOne 在训练时把每个卷积替换为<b>多分支过参数化</b>结构（3×3 + 1×1 + 平均池化旁路等），提升训练收敛；部署时把这些分支<b>折叠回一个等价的 3×3 卷积</b>（重参数化），推理速度逼近直筒网络。demo 在模型加载时用 timm 的 <kbd>reparameterize_model</kbd> 完成折叠。</p>
+
+  <div class="diag">
+    <svg viewBox="0 0 640 250" role="img" aria-label="重参数化示意：训练时多分支块折叠为部署时单个等价的 3 乘 3 卷积">
+      <text class="lbl" x="150" y="24" text-anchor="middle">训练态 · 多分支过参数化</text>
+      <rect x="40" y="36" width="170" height="26" rx="7" fill="#EFE7D5" stroke="#7A8B64" stroke-width="1.4"/>
+      <text class="lbl2" x="125" y="53" text-anchor="middle">3×3 conv + BN</text>
+      <rect x="40" y="68" width="170" height="26" rx="7" fill="#EFE7D5" stroke="#7A8B64" stroke-width="1.4"/>
+      <text class="lbl2" x="125" y="85" text-anchor="middle">1×1 conv + BN</text>
+      <rect x="40" y="100" width="170" height="26" rx="7" fill="#EFE7D5" stroke="#7A8B64" stroke-width="1.4"/>
+      <text class="lbl2" x="125" y="117" text-anchor="middle">1×1 + avgpool + BN</text>
+      <rect x="40" y="132" width="170" height="26" rx="7" fill="#EFE7D5" stroke="#7A8B64" stroke-width="1.4"/>
+      <text class="lbl2" x="125" y="149" text-anchor="middle">identity + BN</text>
+      <path d="M210 49 L236 82 M210 81 L236 88 M210 113 L236 94 M210 145 L236 100" stroke="#9C9283" stroke-width="1.2"/>
+      <circle cx="248" cy="91" r="13" fill="#C6D0B4"/>
+      <text class="lbl" x="248" y="95" text-anchor="middle">+</text>
+      <path d="M261 91 L296 91" stroke="#9C9283" stroke-width="1.6" stroke-dasharray="4 3"/>
+
+      <text class="lbl" x="455" y="24" text-anchor="middle">部署态 · 折叠为单分支（输出完全等价）</text>
+      <path d="M330 91 L356 91" stroke="#7A8B64" stroke-width="2" marker-end="url(#arr)"/>
+      <rect x="360" y="56" width="170" height="70" rx="12" fill="#7A8B64"/>
+      <text class="lbl" x="445" y="86" text-anchor="middle" fill="#FFFFFF">等价 3×3 卷积</text>
+      <text class="lbl2" x="445" y="106" text-anchor="middle" fill="#FFFFFF">每层只执行 1 次</text>
+      <path d="M530 91 L556 91" stroke="#7A8B64" stroke-width="2" marker-end="url(#arr)"/>
+      <text class="lbl2" x="320" y="140" text-anchor="middle">reparameterize_model（加载时执行一次）</text>
+      <text class="lbl2" x="320" y="236" text-anchor="middle">训练时多分支收敛更快；部署时单分支推理更快，二者输出一致</text>
+    </svg>
+  </div>
+
+  <div class="code"><span class="src">mobileone_embedder.py · L11-32 · StudentModel</span>
+self.backbone = timm.create_model(<span class="num">"mobileone_s1.apple_in1k"</span>,
+    pretrained=False, num_classes=<span class="num">0</span>, global_pool=<span class="num">"avg"</span>)
+self.projection = nn.Sequential(
+    nn.Linear(self.backbone.num_features, <span class="num">384</span>, bias=False),
+    nn.BatchNorm1d(<span class="num">384</span>))
+<span class="kw">def</span> <span class="fn">forward</span>(self, images):
+    features = self.backbone(images)
+    <span class="kw">return</span> F.normalize(self.projection(features), dim=<span class="num">1</span>)</div>
+
+  <h3>翻转 TTA：只用于建库</h3>
+  <p>注册照可能偏头、不对称——建库时把每张 ROI 水平翻转后再前向一次，<b>两次特征向量相加再归一化</b>，用 TTA 平均抵消对称性噪声。<b>运行时推理关闭 TTA</b>，只做单次前向，省一半特征计算（README 明言："关闭翻转 TTA"是低延迟链路的一部分）。</p>
+
+  <div class="diag">
+    <svg viewBox="0 0 640 220" role="img" aria-label="翻转 TTA 示意：原图与水平翻转各前向一次，特征相加平均后再次归一化">
+      <rect x="50" y="40" width="120" height="88" rx="8" fill="#EFE7D5" stroke="#7A8B64" stroke-width="1.4"/>
+      <text class="lbl" x="110" y="88" text-anchor="middle">原图</text>
+      <path d="M170 84 L214 84" stroke="#7A8B64" stroke-width="1.8" marker-end="url(#arr)"/>
+      <text class="lbl2" x="192" y="78" text-anchor="middle">前向</text>
+      <circle cx="230" cy="84" r="9" fill="#C6D0B4"/>
+      <text class="lbl2" x="230" y="88" text-anchor="middle">v</text>
+
+      <rect x="340" y="40" width="120" height="88" rx="8" fill="#EFE7D5" stroke="#7A8B64" stroke-width="1.4"/>
+      <text class="lbl" x="400" y="88" text-anchor="middle">水平翻转</text>
+      <path d="M460 84 L504 84" stroke="#7A8B64" stroke-width="1.8" marker-end="url(#arr)"/>
+      <text class="lbl2" x="482" y="78" text-anchor="middle">前向</text>
+      <circle cx="520" cy="84" r="9" fill="#C6D0B4"/>
+      <text class="lbl2" x="520" y="88" text-anchor="middle">v′</text>
+
+      <path d="M232 92 L286 130 M522 92 L470 130" stroke="#9C9283" stroke-width="1.4"/>
+      <circle cx="378" cy="140" r="14" fill="#C6D0B4"/>
+      <text class="lbl" x="378" y="144" text-anchor="middle">⊕</text>
+      <text class="lbl" x="378" y="178" text-anchor="middle">相加平均 → 再 L2 归一化</text>
+      <text class="lbl2" x="320" y="208" text-anchor="middle">仅注册库构建时启用（flip_tta=True）· 推理路径只走左侧单次前向</text>
+    </svg>
+  </div>
+
+  <div class="why"><span class="lb">为什么 · 运行时不做 TTA</span>
+  TTA 平均让注册特征更鲁棒——注册照一旦存下来就不变，多花一次前向完全值得；但摄像头每帧都要识别，TTA 意味着帧率减半。而且 GPU 批量推理时，TTA 的两次前向还要拼成一个 batch（<kbd>torch.cat</kbd> 翻倍），代价更明显。所以只把 TTA 留给"建库时"。<b>另一个隐藏约束</b>：CUDA 每个新线程的首次前向要付约 750 ms 内核装载开销，见第 09 节。</div>
+</section>
+
+<section class="stage" id="stage-5">
+  <div class="mod-head"><span class="chip">05 · 模板库</span><h2>每只猫一张均值模板</h2></div>
+  <p class="lead">注册库为每个身份保存 <b>5 张注册照</b>，每张提取 384 维特征后，取<b>逐维均值</b>再<b>L2 归一化</b>，得到该身份的一张模板向量。脸、身各建一套模板矩阵——匹配时整批矩阵乘，一条指令算出所有身份的相似度。建库口径与板端 gallery 一致，保证 PC 端与板端识别同一只猫的结果可复现。</p>
+
+  <figure>
+    <img src="images/gallery_strip.jpg" alt="同一只猫的 5 张注册照片">
+    <figcaption><b>注册集</b> · 喵比的 5 张注册照（界面要求"恰好 5 张"）。每张经统一检测 → 脸 / 身 ROI → 编码器（含翻转 TTA），得到 5+5 个 384 维向量。</figcaption>
+  </figure>
+
+  <div class="diag">
+    <svg viewBox="0 0 640 210" role="img" aria-label="均值模板示意：5 个注册特征取逐维均值，再 L2 归一化到单位球面">
+      <circle cx="70" cy="80" r="5" fill="#7A8B64"/>
+      <circle cx="130" cy="108" r="5" fill="#7A8B64"/>
+      <circle cx="190" cy="72" r="5" fill="#7A8B64"/>
+      <circle cx="250" cy="104" r="5" fill="#7A8B64"/>
+      <circle cx="310" cy="90" r="5" fill="#7A8B64"/>
+      <text class="lbl2" x="190" y="52" text-anchor="middle">5 个 384 维特征（每张注册照一个）</text>
+      <path d="M74 80 L376 90 M134 108 L374 90 M194 72 L374 90 M254 104 L376 90 M314 90 L376 90" stroke="#9C9283" stroke-width="1.2"/>
+      <circle cx="392" cy="90" r="9" fill="#5C6E49"/>
+      <text class="lbl" x="392" y="93" text-anchor="middle" fill="#fff">μ</text>
+      <text class="lbl2" x="392" y="120" text-anchor="middle">逐维均值</text>
+      <path d="M402 90 L450 90" stroke="#7A8B64" stroke-width="2" marker-end="url(#arr)"/>
+      <circle cx="480" cy="90" r="26" fill="none" stroke="#C6D0B4" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <line x1="480" y1="90" x2="496" y2="72" stroke="#5C6E49" stroke-width="2.4"/>
+      <circle cx="496" cy="72" r="4" fill="#5C6E49"/>
+      <text class="lbl" x="480" y="138" text-anchor="middle">L2 归一化</text>
+      <text class="lbl2" x="480" y="156" text-anchor="middle">单位向量 · 余弦 = 内积</text>
+      <text class="lbl2" x="320" y="196" text-anchor="middle">→ 喵比 · 模板向量（脸 / 身各一套，与板端建库口径一致）</text>
+    </svg>
+  </div>
+
+  <div class="code"><span class="src">run_gui.py · L995-1019 · _rebuild_templates()</span>
+vectors = np.stack([item.feature <span class="kw">for</span> item <span class="kw">in</span> self.gallery
+                    <span class="kw">if</span> item.identity == identity])
+template = vectors.mean(axis=<span class="num">0</span>)                 <span class="cm"># 逐维均值</span>
+template /= max(np.linalg.norm(template), <span class="num">1e-9</span>)  <span class="cm"># L2 归一化</span>
+<span class="cm"># 身体分支同样建模板；缺失则占位 NaN，匹配时跳过该身份该分支</span></div>
+
+  <div class="why"><span class="lb">为什么 · 用均值模板而不是最近邻</span>
+  直接拿 5 张原始特征做最近邻，需要 5 次比对，还会被最"怪"的一张注册照带偏。均值模板把 5 张压成 1 张，匹配退化为<b>一次矩阵乘 = N 个内积</b>，29 张图库的匹配只需 3.2 ms。模板在每次注册 / 加载后重建，增量更新不落盘，运行时内存中保存。</div>
+</section>
+
+<section class="stage" id="stage-6">
+  <div class="mod-head"><span class="chip">06 · 匹配与融合</span><h2>余弦相似度 × 0.62/0.38 加权</h2></div>
+  <p class="lead">查询特征与全部模板做内积（L2 归一化后即余弦）。<b>脸分支</b>和<b>身分支</b>各得一组分数；两个分支都可用时，按 <b>0.62 × 脸 + 0.38 × 身</b> 融合成最终分数；只有单分支时直接用该分支分数。随后按分数排序取 Top-1 身份与 Top-2 分数。</p>
+
+  <h3>余弦相似度长什么样</h3>
+  <div class="diag">
+    <svg viewBox="0 0 640 240" role="img" aria-label="余弦相似度示意：查询特征向量与模板特征向量的夹角越小，余弦值越大">
+      <path d="M140 190 L310 60" stroke="#7A8B64" stroke-width="3" marker-end="url(#arr)"/>
+      <path d="M140 190 L410 130" stroke="#C96B7F" stroke-width="3" marker-end="url(#arr)"/>
+      <path d="M196 144 A 66 66 0 0 1 230 170" fill="none" stroke="#9C9283" stroke-width="1.4"/>
+      <text class="lbl" x="188" y="142" text-anchor="end">θ ≈ 48°</text>
+      <text class="lbl" x="320" y="56" text-anchor="middle" fill="#7A8B64">q 查询特征</text>
+      <text class="lbl" x="422" y="124" text-anchor="middle" fill="#C96B7F">t 模板特征</text>
+      <text class="lbl2" x="320" y="170" text-anchor="middle">cos θ = 0.67（本例脸分支 Top-1 为 0.680）</text>
+      <text class="lbl2" x="320" y="192" text-anchor="middle">夹角越小越像；L2 归一化后余弦 = 内积</text>
+      <text class="lbl2" x="320" y="212" text-anchor="middle">→ 一次矩阵乘算出查询与全部身份模板的分数</text>
+    </svg>
+  </div>
+
+  <h3>真实的脸分支分数（本轮查询 vs 6 个身份）</h3>
+  <div class="chart">
+    <h4>脸分支余弦分数 · 按分数降序</h4>
+    <div class="note">查询 = 喵比注册照 · 小脸档（面积 4.5% < 10%）阈值 0.50 虚线 · Top-1 喵比 0.680 遥遥领先</div>
+    <div class="hbars" style="padding-top:22px">
+      <div class="hrow"><span class="lab">喵比</span><div class="track2"><div class="bar dark" style="width:85%"></div><span class="val">0.680</span></div></div>
+      <div class="hrow"><span class="lab">尖嘴</span><div class="track2"><div class="bar" style="width:57.3%"></div><span class="val">0.459</span></div></div>
+      <div class="hrow"><span class="lab">圆子</span><div class="track2"><div class="bar" style="width:45.4%"></div><span class="val">0.363</span></div></div>
+      <div class="hrow"><span class="lab">cat_224149</span><div class="track2"><div class="bar" style="width:35.9%"></div><span class="val">0.287</span></div></div>
+      <div class="hrow"><span class="lab">cat_226675</span><div class="track2"><div class="bar" style="width:15.5%"></div><span class="val">0.124</span></div></div>
+      <div class="hrow"><span class="lab">meimei</span><div class="track2"><div class="bar" style="width:10.5%"></div><span class="val">0.084</span></div></div>
+      <div class="thr-line" style="left:62.5%;top:2px;bottom:4px" data-lab="阈值 0.50"></div>
+    </div>
+    <details><summary>查看数据表</summary>
+      <table><tr><th>身份</th><th>脸分支余弦</th></tr><tr><td>喵比</td><td>0.6803</td></tr><tr><td>尖嘴</td><td>0.4585</td></tr><tr><td>圆子</td><td>0.3629</td></tr><tr><td>cat_224149</td><td>0.2870</td></tr><tr><td>cat_226675</td><td>0.1240</td></tr><tr><td>meimei</td><td>0.0840</td></tr></table>
+    </details>
+  </div>
+
+  <h3>融合：0.62 的脸 + 0.38 的身</h3>
+  <div class="chart">
+    <h4>双分支融合分解（真实分数）</h4>
+    <div class="note">身分支分数为按融合结果反推（≈0.725）；标尺 0–0.8 · 融合 0.6974 高于小脸档阈值 0.50</div>
+    <div class="hbars" style="padding-top:22px">
+      <div class="hrow"><span class="lab">脸分支 ×0.62</span><div class="track2"><div class="bar" style="width:52.7%;background:var(--face)"></div><span class="val">0.422</span></div></div>
+      <div class="hrow"><span class="lab">身分支 ×0.38</span><div class="track2"><div class="bar" style="width:34.5%;background:var(--body)"></div><span class="val">0.276</span></div></div>
+      <div class="hrow"><span class="lab" style="font-weight:700;color:var(--ink)">融合 = 0.697</span><div class="track2" style="background:transparent"><div class="bar" style="width:87.2%;background:linear-gradient(90deg,var(--face) 0 60%,var(--body) 60% 100%)"></div><span class="val">0.6974</span></div></div>
+      <div class="thr-line" style="left:62.5%;top:2px;bottom:4px" data-lab="阈值 0.50"></div>
+    </div>
+    <div class="legend"><span><i style="background:var(--face)"></i>脸分支（0.62 权重）</span><span><i style="background:var(--body)"></i>身分支（0.38 权重）</span></div>
+  </div>
+
+  <div class="code"><span class="src">run_gui.py · L770-784 · _fuse_scores()</span>
+<span class="kw">if</span> face_scores <span class="kw">is</span> None: <span class="kw">return</span> body_scores        <span class="cm"># 无脸 → 仅身</span>
+<span class="kw">if</span> body_scores <span class="kw">is</span> None: <span class="kw">return</span> face_scores       <span class="cm"># 无身 → 仅脸</span>
+both = face_ok &amp; body_ok
+scores[both] = FACE_WEIGHT * face_scores[both] \
+             + BODY_WEIGHT * body_scores[both]      <span class="cm"># 0.62 / 0.38</span></div>
+
+  <div class="why"><span class="lb">为什么 · 62/38 而不是各半</span>
+  脸是最强判别信号（花纹、眼周、耳形），所以权重更高；但脸小、模糊或背对镜头时，身分支（花色 / 体型）仍能兜底。两分支都缺失（如只拍到尾巴）的个体不会进入匹配。融合发生在<b>分数层</b>而非特征层——两个异构特征空间不用强行拼接，各算各的余弦再加权，还天然支持单分支降级。</div>
+</section>
+
+<section class="stage" id="stage-7">
+  <div class="mod-head"><span class="chip">07 · 决策</span><h2>动态阈值：小脸更严格</h2></div>
+  <p class="lead">拿到 Top-1 / Top-2 分数后，能不能直接宣布"识别成功"？规则分两层：<b>动态阈值</b>按脸框面积占画面比例分三档——小脸像素少、特征噪声大，门槛反而更严；<b>决策余量</b>要求第一名至少比第二名高 <kbd>0.03</kbd>，避免两个身份分不出时硬猜。此口径与板端 <kbd>types.hpp MatcherConfig</kbd> 同构。</p>
+
+  <div class="diag">
+    <svg viewBox="0 0 640 230" role="img" aria-label="动态阈值示意：脸框面积占比分三档，面积越小阈值越严">
+      <line x1="30" y1="90" x2="610" y2="90" stroke="#E4DAC6" stroke-width="2"/>
+      <rect x="30" y="70" width="116" height="40" fill="#F6D9DE" stroke="#C96B7F" stroke-width="1.4"/>
+      <rect x="146" y="70" width="290" height="40" fill="#D9E7D2" stroke="#3E7D52" stroke-width="1.4"/>
+      <rect x="436" y="70" width="174" height="40" fill="#C6D0B4" stroke="#5C6E49" stroke-width="1.4"/>
+      <text class="lbl" x="88" y="95" text-anchor="middle">小脸 &lt; 10%</text>
+      <text class="lbl" x="88" y="125" text-anchor="middle">阈值 0.50</text>
+      <text class="lbl" x="291" y="95" text-anchor="middle">中脸 10% – 35%</text>
+      <text class="lbl" x="291" y="125" text-anchor="middle">阈值 0.45</text>
+      <text class="lbl" x="523" y="95" text-anchor="middle">大脸 ≥ 35%</text>
+      <text class="lbl" x="523" y="125" text-anchor="middle">阈值 0.40</text>
+      <text class="lbl2" x="30" y="158" text-anchor="start">0%</text>
+      <text class="lbl2" x="138" y="158" text-anchor="middle">10%</text>
+      <text class="lbl2" x="428" y="158" text-anchor="middle">35%</text>
+      <text class="lbl2" x="610" y="158" text-anchor="end">100%</text>
+      <path d="M76 70 L76 40 L210 40" stroke="#C96B7F" stroke-width="1.6" fill="none" marker-end="url(#arr)"/>
+      <text class="lbl2" x="180" y="32" text-anchor="middle" fill="#C96B7F">本查询脸面积 4.5% → 小脸档 0.50</text>
+      <text class="lbl2" x="320" y="196" text-anchor="middle">面积占比 = 脸框像素 ÷ 画面像素 · 小脸像素少、特征噪声大，所以门槛更严</text>
+    </svg>
+  </div>
+
+  <h3>本次查询的真实判定</h3>
+  <div class="result-card">
+    <div class="rbox pass"><div class="k">Top-1 · 喵比</div><div class="v">0.6974</div></div>
+    <div class="rbox"><div class="k">Top-2 · 尖嘴</div><div class="v">0.4318</div></div>
+    <div class="rbox"><div class="k">决策余量</div><div class="v">0.2656 <small>&gt; 0.03 ✓</small></div></div>
+    <div class="rbox"><div class="k">动态阈值（小脸档）</div><div class="v">0.50</div></div>
+    <div class="rbox pass"><div class="k">结论</div><div class="v">通过 <small>passed = true</small></div></div>
+  </div>
+
+  <div class="code"><span class="src">run_gui.py · L1030-1037（阈值）+ L826（判定）</span>
+<span class="kw">def</span> <span class="fn">_adaptive_threshold</span>(face_area):
+    <span class="kw">if</span> face_area &gt;= <span class="num">0.35</span>: <span class="kw">return</span> <span class="num">0.40</span>   <span class="cm"># 大脸：像素足，放宽</span>
+    <span class="kw">if</span> face_area &gt;= <span class="num">0.10</span>: <span class="kw">return</span> <span class="num">0.45</span>   <span class="cm"># 中脸</span>
+    <span class="kw">return</span> <span class="num">0.50</span>                     <span class="cm"># 小脸：特征噪声大，门槛更严</span>
+
+passed = score &gt;= threshold <span class="kw">and</span> (len(order) == <span class="num">1</span>
+         <span class="kw">or</span> decision_margin &gt;= MATCH_MARGIN)   <span class="cm"># 0.03</span></div>
+
+  <div class="why"><span class="lb">为什么 · 阈值随面积变化</span>
+  同样的余弦 0.45，大脸可能是"不够像"，小脸却可能是"已经很像但噪声太大"。按面积放宽大脸、收紧小脸，是用<b>先验的像素质量</b>校准<b>后验的判定尺度</b>。另外注意：<b>界面仍直接显示最相近身份</b>（用户要求）——passed 只影响"是否锁定显示 / 是否参与投票"，不会把猫的名字抹掉。</div>
+
+  <table class="tbl">
+    <tr><th>脸框面积占比</th><th>档位</th><th>判定阈值</th></tr>
+    <tr><td>≥ 0.35（大脸）</td><td>LARGE</td><td class="v">0.40</td></tr>
+    <tr><td>≥ 0.10（中脸）</td><td>MEDIUM</td><td class="v">0.45</td></tr>
+    <tr><td>&lt; 0.10（小脸）</td><td>SMALL</td><td class="v">0.50</td></tr>
+    <tr><td colspan="2">Top-1 与 Top-2 最小差（MATCH_MARGIN）</td><td class="v">0.03</td></tr>
+  </table>
+</section>
+
+<section class="stage" id="stage-8">
+  <div class="mod-head"><span class="chip">08 · 摄像头链路</span><h2>节流推理 + 多帧锁定</h2></div>
+  <p class="lead">摄像头页把"抓帧"与"识别"解耦：采集线程以 <b>1280×720</b> 抓帧（小脸像素更多，YOLO 置信度更稳），但<b>识别节流到至少间隔 0.3 秒</b>（约 3.3 次/秒，GPU 推理不阻塞界面）；Tk 主线程每 30 ms 轮询刷新画面。识别结果加入<b>多帧锁定</b>：同一身份连续 5 帧出现才锁定显示，且只有通过动态阈值的身份才参与投票——单帧误报无法撼动显示。</p>
+
+  <figure>
+    <img src="images/multi_frame.jpg" alt="摄像头多猫识别快照：两只猫同框">
+    <figcaption><b>真实多猫快照</b> · 摄像头页同一帧识别出两只猫（尖嘴 + 喵比），各自带身框与脸框标签。下面的两小图是界面保存快照时自动裁剪的"检测照"。</figcaption>
+  </figure>
+  <div class="img-pair">
+    <figure><img src="images/multi_cat1.jpg" alt="第一只猫的脸部裁剪"><figcaption><b>猫 1 检测照</b> · 尖嘴</figcaption></figure>
+    <figure><img src="images/multi_cat2.jpg" alt="第二只猫的脸部裁剪"><figcaption><b>猫 2 检测照</b> · 喵比</figcaption></figure>
+  </div>
+
+  <div class="diag">
+    <svg viewBox="0 0 640 200" role="img" aria-label="多帧锁定示意：喵比连续 5 帧出现后锁定显示，尖嘴零散帧不构成锁定">
+      <text class="lbl2" x="20" y="40">识别帧（间隔 0.3 s）</text>
+      <line x1="80" y1="88" x2="600" y2="88" stroke="#E4DAC6" stroke-width="1"/>
+      <line x1="80" y1="136" x2="600" y2="136" stroke="#E4DAC6" stroke-width="1"/>
+      <text class="lbl" x="20" y="93" fill="#C96B7F">喵比</text>
+      <text class="lbl" x="20" y="141" fill="#3E7D52">尖嘴</text>
+      <g fill="#C96B7F">
+        <circle cx="100" cy="88" r="6"/><circle cx="150" cy="88" r="6"/><circle cx="200" cy="88" r="6"/><circle cx="250" cy="88" r="6"/><circle cx="300" cy="88" r="6"/>
+        <circle cx="450" cy="88" r="6"/><circle cx="500" cy="88" r="6"/>
+      </g>
+      <circle cx="550" cy="88" r="6" fill="#E4DAC6"/>
+      <g fill="#E4DAC6">
+        <circle cx="100" cy="136" r="6"/><circle cx="150" cy="136" r="6"/><circle cx="200" cy="136" r="6"/><circle cx="250" cy="136" r="6"/><circle cx="300" cy="136" r="6"/>
+        <circle cx="400" cy="136" r="6"/><circle cx="500" cy="136" r="6"/><circle cx="550" cy="136" r="6"/>
+      </g>
+      <circle cx="350" cy="136" r="6" fill="#3E7D52" opacity="0.55"/>
+      <line x1="305" y1="60" x2="305" y2="160" stroke="#C96B7F" stroke-width="1.4" stroke-dasharray="4 3"/>
+      <text class="lbl2" x="305" y="52" text-anchor="middle" fill="#C96B7F">第 5 帧 → 连续 5 次 → 锁定显示</text>
+      <text class="lbl2" x="320" y="182" text-anchor="middle">尖嘴第 7 帧为误报：未通过动态阈值 → 不投票；锁定后身份不因单帧波动消失（约 1.5 s 稳定）</text>
+    </svg>
+  </div>
+
+  <div class="code"><span class="src">run_gui.py · L1236-1249 · _capture_loop() 节流与投票</span>
+<span class="kw">if</span> now - self._last_detect &gt;= self.PREVIEW_MIN:        <span class="cm"># 0.30 s 节流</span>
+    matches, timing = self.service.identify_frame(frame)
+present = {m.identity <span class="kw">for</span> m <span class="kw">in</span> matches <span class="kw">if</span> m.passed}     <span class="cm"># 只统计通过者</span>
+self._votes = {i: self._votes.get(i, <span class="num">0</span>) + <span class="num">1</span> <span class="kw">for</span> i <span class="kw">in</span> present}
+self._locked_ids = {i <span class="kw">for</span> i, c <span class="kw">in</span> self._votes.items() <span class="kw">if</span> c &gt;= LOCK_FRAMES}  <span class="cm"># 5 帧</span></div>
+
+  <div class="why"><span class="lb">为什么 · 三道防抖闸门</span>
+  <b>① 节流</b>：28 ms 的推理在 30 fps 采集下每一帧都做是浪费，0.3 s 间隔已经远超实时所需；<b>② 多帧锁定</b>：猫甩头、短暂遮挡会造成单帧身份跳变，5 帧锁定让显示"记性好、忘性慢"；<b>③ 结果指纹</b>：面板只按"画面里是谁"重建（指纹不含每帧微变的置信度），身份集合不变时 UI 完全静止，不闪不抖。</div>
+</section>
+
+<section class="stage" id="stage-9">
+  <div class="mod-head"><span class="chip">09 · 工程细节</span><h2>常驻线程与一次性的 CUDA 热身</h2></div>
+  <p class="lead">GPU 推理有个被实测出来的特性：<b>每个新线程的首次 CUDA 前向要付约 750 ms</b>（内核 / 引擎装载），之后同线程再调用只需十几毫秒。如果每次点击都新建线程推理，这笔开销就每次重付——单张照片"检测"会莫名变成 0.8 秒。因此 demo 用<b>常驻单线程队列</b>（BackgroundWorker）串行执行所有后台任务：模型加载、图片识别、身份注册，热身只发生一次。</p>
+
+  <div class="code"><span class="src">run_gui.py · L217-247 · BackgroundWorker + L425-433 · _warmup()</span>
+<span class="cm"># 把所有后台任务放同一常驻线程顺序执行，CUDA 首次前向只付一次</span>
+self._queue = queue.Queue()   <span class="cm"># task / on_success / on_error 三元组</span>
+...
+<span class="kw">def</span> <span class="fn">_warmup</span>(self):                    <span class="cm"># 加载完成后立即</span>
+    <span class="kw">for</span> _ <span class="kw">in</span> range(<span class="num">2</span>):               <span class="cm"># 2 轮</span>
+        self._detect_modalities([blank])                       <span class="cm"># 检测路径</span>
+        self._embed_crops([crop])                              <span class="cm"># 脸特征路径</span>
+        self._embed_crops([crop], model=self.body_model)       <span class="cm"># 身特征路径</span></div>
+
+  <p>注册同样讲究：<b>先推理后落盘</b>——5 张图先全量跑完特征提取，任一张没检测到猫脸就直接报错，绝不写入；落盘采用"临时目录 + <kbd>os.replace</kbd>"原子替换，中途失败自动清理，registry.json 用 sha256 源哈希防重。界面每张注册照的向量与照片都持久化到 <kbd>data/gui_registry</kbd>，下次启动直接加载。</p>
+
+  <div class="why"><span class="lb">为什么 · 线程模型决定了交互手感</span>
+  所有 UI 回调经 <kbd>root.after</kbd> 转回主线程；推理线程永远不碰 Tk 控件。摄像头页更进一步：抓帧、识别都在后台线程，主线程只刷新画面与结果卡片——即使某帧识别异常（异常被捕获并显示状态），刷新链也绝不被中断。</div>
+</section>
+
+<section class="stage" id="stage-10">
+  <div class="mod-head"><span class="chip">10 · 附录</span><h2>全量常量与实测数据</h2></div>
+
+  <div class="two">
+    <div>
+      <h3>核心常量（run_gui.py 顶部）</h3>
+      <table class="tbl">
+        <tr><th>常量</th><th>值</th><th>含义</th></tr>
+        <tr><td>DIMENSION</td><td class="v">384</td><td>特征维度</td></tr>
+        <tr><td>FACE_WEIGHT / BODY_WEIGHT</td><td class="v">0.62 / 0.38</td><td>融合权重</td></tr>
+        <tr><td>MARGIN / BODY_MARGIN</td><td class="v">0.10 / 0.15</td><td>ROI 外扩比例</td></tr>
+        <tr><td>FIXED_MATCH_THRESHOLD</td><td class="v">0.35</td><td>固定阈值（非自适应时）</td></tr>
+        <tr><td>MATCH_MARGIN</td><td class="v">0.03</td><td>Top1−Top2 最小差</td></tr>
+        <tr><td>LARGE / MEDIUM_FACE_AREA</td><td class="v">0.35 / 0.10</td><td>面积分档边界</td></tr>
+        <tr><td>阈值 L / M / S</td><td class="v">0.40 / 0.45 / 0.50</td><td>三档动态阈值</td></tr>
+        <tr><td>PREVIEW_MIN</td><td class="v">0.30 s</td><td>摄像头识别节流</td></tr>
+        <tr><td>LOCK_FRAMES</td><td class="v">5</td><td>多帧锁定帧数</td></tr>
+        <tr><td>CAMERA / PREVIEW</td><td class="v">1280×720 / 960×540</td><td>采集 / 预览分辨率</td></tr>
+        <tr><td>注册图数</td><td class="v">5 / 身份</td><td>DEFAULT_IMAGES_PER_IDENTITY</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>实测（真实运行，CUDA）</h3>
+      <table class="tbl">
+        <tr><th>项目</th><th>值</th></tr>
+        <tr><td>端到端（照片）</td><td class="v">28.2 ms</td></tr>
+        <tr><td>解码（不计入）</td><td>12.9 ms</td></tr>
+        <tr><td>统一检测</td><td>18.1 ms</td></tr>
+        <tr><td>脸 / 身特征</td><td>2.7 / 4.1 ms</td></tr>
+        <tr><td>关联 / 匹配</td><td>0.03 / 3.2 ms</td></tr>
+        <tr><td>Top-1 分数（喵比）</td><td class="v">0.6974</td></tr>
+        <tr><td>Top-2 分数（尖嘴）</td><td>0.4318</td></tr>
+        <tr><td>决策余量</td><td>0.2656</td></tr>
+        <tr><td>图库</td><td>6 身份 · 29 张</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h3>与板端（demo_hisi）的对照</h3>
+  <ul style="margin:10px 0 0 20px;font-size:13.5px;color:var(--ink2)">
+    <li>统一 YOLO 权重同源：<code>cat_body_face_yolo11n_v1.pt</code>，板端示例可视化见 <code>demo_hisi/examples/unified_yolo_face_body_roi.jpg</code>。</li>
+    <li>动态阈值与板端 <code>types.hpp MatcherConfig</code> 同构（源码注释明确注明）；模板建库口径一致，PC 端与板端可共享注册库。</li>
+    <li>PC 端为演示关闭了翻转 TTA、不加载 NekoNet / SIFT / XGBoost，构成低延迟链路。</li>
+  </ul>
+</section>
+
+</main>
+</div>
+
+<footer class="footer">
+  <div class="layout" style="grid-template-columns:1fr;gap:0">
+  <p style="max-width:100%"><b>数据来源</b>：本文全部耗时、分数、框坐标来自真实运行 <code>run_gui.py</code> 完整链路（CUDA / MobileOne-S1 384D / YOLO11n）在注册库照片上的结果；示意图为算法机制图示，静态图片与数据为真实输出。相关代码：<code>gui_demo/run_gui.py</code>、<code>gui_demo/mobileone_embedder.py</code>。</p>
+  </div>
+</footer>
