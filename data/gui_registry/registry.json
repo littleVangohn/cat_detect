@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "identities": [
+    {
+      "identity": "meimei",
+      "safe_id": "meimei_02a626b47b",
+      "image_files": [
+        "images\\meimei_02a626b47b\\01.jpg",
+        "images\\meimei_02a626b47b\\02.jpg",
+        "images\\meimei_02a626b47b\\03.jpg",
+        "images\\meimei_02a626b47b\\04.jpg",
+        "images\\meimei_02a626b47b\\05.jpg",
+        "images\\meimei_02a626b47b\\06.jpg"
+      ],
+      "vector_file": "vectors\\meimei_02a626b47b.npy",
+      "created_at_unix": 1786954279.1101725,
+      "source_hashes": [
+        "6a9982e0e3cc354a382714b6d00acca6ad85546d623875b9df9611fb6c7e44cc",
+        "a94810f1c87f990433658a4ad489768785287eca86f8fec6d2acfe211ac75504",
+        "803207b8d21a863e21713bdc85d72e8bb6e567d8add39b0b636eaffa90dd6e9a",
+        "6bd4506b33dcd6a4a3127315ba91779a3cdab12e8864f756ffe4baafc7d2679c",
+        "d020ce0dbc36addbc188b210ab56369fb6c148ecaff515414430105abe9e57a9",
+        "615d8fac5f68c8b6314178506cd0c9f6a8a51af5680d65e5d8703576e745c147"
+      ]
+    },
+    {
+      "identity": "喵比",
+      "safe_id": "喵比_4483211240",
+      "image_files": [
+        "images\\喵比_4483211240\\01.jpg",
+        "images\\喵比_4483211240\\02.jpg",
+        "images\\喵比_4483211240\\03.jpg",
+        "images\\喵比_4483211240\\04.jpg",
+        "images\\喵比_4483211240\\05.jpg",
+        "images\\喵比_4483211240\\06.jpg"
+      ],
+      "vector_file": "vectors\\喵比_4483211240.npy",
+      "created_at_unix": 1786955248.340849,
+      "source_hashes": [
+        "1cbce13faef3673aec51d4dc9a3fd8880ee1d92ac76e693a70482a28ecd65ec4",
+        "82990cecf4af77db4a9772a22038604c528f46b1e3e896d29f457d073a81dc37",
+        "e6cf5e79f2ff7f2ebb7f7a388352416cdcd5422864b38fdec96838ec9f239c6d",
+        "e190041c493a21613a0027a32689bb0bedaf1bf50391518546c1077956a42e67",
+        "bdd1047ec3667811525a8d1dde5ad1f7721a64d1e423d0f94120934f72358f23",
+        "b82e1e786eb8b10e74086121d2503216f53249c0e37be77f2d4d7eaebfc521b3"
+      ]
+    },
+    {
+      "identity": "尖嘴",
+      "safe_id": "尖嘴_533fcc7cd6",
+      "image_files": [
+        "images\\尖嘴_533fcc7cd6\\01.jpg",
+        "images\\尖嘴_533fcc7cd6\\02.jpg",
+        "images\\尖嘴_533fcc7cd6\\03.jpg",
+        "images\\尖嘴_533fcc7cd6\\04.jpg",
+        "images\\尖嘴_533fcc7cd6\\05.jpg",
+        "images\\尖嘴_533fcc7cd6\\06.jpg"
+      ],
+      "vector_file": "vectors\\尖嘴_533fcc7cd6.npy",
+      "created_at_unix": 1786955732.3650358,
+      "source_hashes": [
+        "7fa96b5089b6f331816d9417500beafa573a436a35720d5a61cc8e3bbb251495",
+        "385cda3f2546d1d2549cdc6aea36027787d6b8a6bf821f5be33d9675da5b8768",
+        "2666c43baefc0e0905a3320839d7698e7f7ced2434aa232cd62c6828e15239f2",
+        "5d8c6b699eaad802dcfd2f8bb04c4a6e59be0e68bbb7727763a6f56b83aa8a14",
+        "9b6c444c4341a9a40e0e2deba50c03106d18d998a7e5e40cb9fbcc055207f518",
+        "a92074c2e9a924fa6bf19debb5566c452547bd0a36764ca2e5d5e3cbd22b54f1"
+      ]
+    },
+    {
+      "identity": "圆子",
+      "safe_id": "圆子_3ea595aec3",
+      "image_files": [
+        "images\\圆子_3ea595aec3\\01.jpg",
+        "images\\圆子_3ea595aec3\\02.jpg",
+        "images\\圆子_3ea595aec3\\03.jpg",
+        "images\\圆子_3ea595aec3\\04.jpg",
+        "images\\圆子_3ea595aec3\\05.jpg",
+        "images\\圆子_3ea595aec3\\06.jpg"
+      ],
+      "vector_file": "vectors\\圆子_3ea595aec3.npy",
+      "created_at_unix": 1787216948.779547,
+      "source_hashes": [
+        "dd1e2f305ff665ff173e82114aa92570ebd74e2741805418d5001381e7966b43",
+        "5676944abce88974c302bcd8047b807e63aeb835369205245273dff9ac244e07",
+        "da2598b5c848e0f85eb8ce041a960d397e159cebc8272c483435b4455d72d72a",
+        "b0f50247495240cc2521f4e71724e214f7890f7057226b9b2613c5c884843882",
+        "9c1582cf110f84b6ab5d1914fd4609c62e3ddc31056b3ad6226043cfa6adb168",
+        "becf23b7c7225d8a18f359dcb3f1d4c5476b6eea8ffb88d683fa79b573d1fb1e"
+      ]
+    }
+  ]
+}
